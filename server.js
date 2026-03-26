@@ -1,11 +1,29 @@
+const fs = require('fs');
+const path = require('path');
+
+// ── ENSURE LOGS FOLDER EXISTS ────────────────────────
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+const logFile = path.join(logsDir, 'access.log');
+if (!fs.existsSync(logFile)) {
+  fs.writeFileSync(logFile, '');
+}
+
+// ── NOW LOAD APP ─────────────────────────────────────
 require('dotenv').config();
 const app = require('./src/app');
 const connectDB = require('./src/config/db');
 const mongoose = require('mongoose');
+const morgan = require('morgan');
+
+// ── ADD FILE LOGGING AFTER FOLDER EXISTS ─────────────
+const accessLogStream = fs.createWriteStream(logFile, { flags: 'a' });
+app.use(morgan('combined', { stream: accessLogStream }));
 
 const PORT = process.env.PORT || 4000;
 
-// 🔹 Handle Uncaught Exceptions
 process.on('uncaughtException', (err) => {
   console.error('❌ UNCAUGHT EXCEPTION:', err.message);
   process.exit(1);
@@ -13,20 +31,17 @@ process.on('uncaughtException', (err) => {
 
 const startServer = async () => {
   try {
-    //  Connect DB first
     await connectDB();
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 MedPilot Server running on port ${PORT}`);
     });
 
-    //  Handle Unhandled Promise Rejections
     process.on('unhandledRejection', (err) => {
       console.error('❌ UNHANDLED REJECTION:', err.message);
       server.close(() => process.exit(1));
     });
 
-    //  Graceful Shutdown
     process.on('SIGINT', async () => {
       console.log('🛑 Gracefully shutting down...');
       await mongoose.connection.close();
