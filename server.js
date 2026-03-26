@@ -1,3 +1,6 @@
+require('dotenv').config();
+
+
 const fs = require('fs');
 const path = require('path');
 
@@ -11,14 +14,11 @@ if (!fs.existsSync(logFile)) {
   fs.writeFileSync(logFile, '');
 }
 
-// ── NOW LOAD APP ─────────────────────────────────────
-require('dotenv').config();
 const app = require('./src/app');
 const connectDB = require('./src/config/db');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
 
-// ── ADD FILE LOGGING AFTER FOLDER EXISTS ─────────────
 const accessLogStream = fs.createWriteStream(logFile, { flags: 'a' });
 app.use(morgan('combined', { stream: accessLogStream }));
 
