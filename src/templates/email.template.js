@@ -72,9 +72,24 @@ const refillConfirmationTemplate = ({ name, medicationName, pharmacyName }) =>
     <p>Your medication will be ready for pickup soon.</p>
   `);
 
+  // OTP VERIFICATION
+const otpVerificationTemplate = ({ name, otp }) =>
+  baseTemplate(`
+    <p>Hi <strong>${name}</strong>,</p>
+    <p>Thank you for registering with MedPilot!</p>
+    <p>Your One-Time Password (OTP) to verify your account is:</p>
+    <div style="background:#f0f9ff;padding:16px;border-radius:8px;
+        border-left:4px solid #00AD85;margin:16px 0;">
+      <p style="font-size:20px;font-weight:bold;text-align:center;margin:0;">${otp}</p>
+    </div>
+    <p>This OTP expires in <strong>15 minutes</strong>.</p>
+    <p>If you did not create an account, you can safely ignore this email.</p>
+  `);
+
 module.exports = {
   forgotPasswordTemplate,
   doseReminderTemplate,
   refillAlertTemplate,
   refillConfirmationTemplate,
+  otpVerificationTemplate,
 };

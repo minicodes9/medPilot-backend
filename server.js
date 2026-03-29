@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-
+const { startSchedulers } = require('./src/services/reminder.service');
 const fs = require('fs');
 const path = require('path');
 
@@ -35,8 +35,9 @@ const startServer = async () => {
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 MedPilot Server running on port ${PORT}`);
+      startSchedulers();
     });
-
+    
     process.on('unhandledRejection', (err) => {
       console.error('❌ UNHANDLED REJECTION:', err.message);
       server.close(() => process.exit(1));

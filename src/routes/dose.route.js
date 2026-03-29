@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-
 const {
   logDose,
   getDoseLogs,
@@ -8,28 +7,25 @@ const {
   updateDoseLog,
   deleteDoseLog,
 } = require('../controllers/dose.controller');
-
-const { protect } = require('../middlewares/auth.middleware');
+const { protect, patientOnly } = require('../middlewares/auth.middleware');
 const validateRequest = require('../middlewares/validateRequest');
 const validateObjectId = require('../middlewares/validateObjectID');
 const { logDoseSchema } = require('../validations/dose.validation');
+
+// ── GLOBAL MIDDLEWARE ────────────────────────────────────
 router.use(protect);
 
-//  COLLECTION ROUTES 
+// ── COLLECTION ROUTES ────────────────────────────────────
 router
   .route('/')
-  .get(getDoseLogs) 
-  .post(validateRequest(logDoseSchema), logDose);
+  .get(getDoseLogs)
+  .post(patientOnly, validateRequest(logDoseSchema), logDose);
 
-// SINGLE RESOURCE ROUTES 
+// ── SINGLE RESOURCE ROUTES ───────────────────────────────
 router
   .route('/:id')
   .get(validateObjectId, getDoseLog)
-  .put(
-    validateObjectId,
-    validateRequest(logDoseSchema),
-    updateDoseLog
-  )
-  .delete(validateObjectId, deleteDoseLog);
+  .put(validateObjectId, patientOnly, validateRequest(logDoseSchema), updateDoseLog)
+  .delete(validateObjectId, patientOnly, deleteDoseLog);
 
 module.exports = router;

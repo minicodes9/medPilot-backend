@@ -4,7 +4,8 @@ const User = require('../models/user.model');
 const { successResponse, errorResponse } = require('../utils/response');
 const { sendRefillConfirmation } = require('../services/email.service');
 
-//  CREATE REFILL REQUEST 
+
+// ── CREATE REFILL REQUEST ────────────────────────────────
 const createRefillRequest = async (req, res, next) => {
   try {
     const {
@@ -47,8 +48,8 @@ const createRefillRequest = async (req, res, next) => {
       pharmacyName,
       pharmacyAddress,
       pharmacyPhone,
-      quantity,
-      isUrgent: isUrgent ?? med.remainingQuantity === 0,
+      quantity: Number(quantity), // ✅ ensure number
+      isUrgent: isUrgent ?? med.remainingQuantity === 2,
       notes,
     });
 
@@ -63,7 +64,8 @@ const createRefillRequest = async (req, res, next) => {
   }
 };
 
-// GET ALL REFILL REQUESTS 
+
+// ── GET ALL REFILL REQUESTS ──────────────────────────────
 const getRefillRequests = async (req, res, next) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
@@ -95,7 +97,8 @@ const getRefillRequests = async (req, res, next) => {
   }
 };
 
-// GET SINGLE REFILL REQUEST 
+
+// ── GET SINGLE REFILL REQUEST ────────────────────────────
 const getRefillRequest = async (req, res, next) => {
   try {
     const refillRequest = await RefillRequest.findOne({
@@ -116,8 +119,7 @@ const getRefillRequest = async (req, res, next) => {
 };
 
 
-// ── CANCEL REFILL REQUEST 
-
+// ── CANCEL REFILL REQUEST ────────────────────────────────
 const cancelRefillRequest = async (req, res, next) => {
   try {
     const refillRequest = await RefillRequest.findOne({
@@ -146,7 +148,55 @@ const cancelRefillRequest = async (req, res, next) => {
   }
 };
 
-// UPDATE REFILL STATUS 
+const updateRefillRequest = async (req, res, next) => {
+  try {
+    const refillRequest = await RefillRequest.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!refillRequest) {
+      return errorResponse(res, 'Refill request not found', 404);
+    }
+
+    if (refillRequest.status !== 'pending') {
+      return errorResponse(res, 'Only pending requests can be updated', 400);
+    }
+
+    // ── Whitelist allowed fields ──────────────────────────
+    const allowedFields = [
+      'pharmacyName',
+      'pharmacyAddress',
+      'pharmacyPhone',
+      'quantity',
+      'isUrgent',
+      'notes',
+    ];
+
+    const updateData = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    if (updateData.quantity) {
+      updateData.quantity = Number(updateData.quantity);
+    }
+
+    const updated = await RefillRequest.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { returnDocument: 'after' }
+    ).populate('medication', 'name dosage');
+
+    return successResponse(res, 'Refill request updated', updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+//  update refill request status (admin only, with medication restock and confirmation email on completion)
 const updateRefillStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -156,7 +206,6 @@ const updateRefillStatus = async (req, res, next) => {
       approved: ['completed', 'rejected'],
     };
 
-    // Get current request
     const refillRequest = await RefillRequest.findById(req.params.id);
 
     if (!refillRequest) {
@@ -173,27 +222,37 @@ const updateRefillStatus = async (req, res, next) => {
       );
     }
 
-    //  Atomic update (prevents double execution)
     const updatedRequest = await RefillRequest.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        status: currentStatus, 
-      },
+      { _id: req.params.id, status: currentStatus },
       { status },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('medication', 'name');
 
     if (!updatedRequest) {
-      return errorResponse(res, 'Update conflict, try again', 409);
+      return errorResponse(res, 'Update conflict, please try again', 409);
     }
 
-    //  If completed → update stock + send email
+    // ── IF COMPLETED → RESTOCK MEDICATION ────────────────
     if (status === 'completed') {
+      const medicationId = updatedRequest.medication?._id;
+      const quantityToAdd = Number(updatedRequest.quantity);
+
+      if (!medicationId) {
+        return errorResponse(res, 'Medication ID missing', 500);
+      }
+
+      if (isNaN(quantityToAdd)) {
+        return errorResponse(res, 'Invalid quantity', 400);
+      }
+
       await Medication.updateOne(
-        { _id: updatedRequest.medication._id },
-        { $inc: { remainingQuantity: updatedRequest.quantity } }
+        { _id: medicationId },
+        { $inc: { remainingQuantity: quantityToAdd } }
       );
 
+      console.log(`✅ Restocked ${quantityToAdd} pills for medication ${medicationId}`);
+
+      // ── SEND CONFIRMATION EMAIL ───────────────────────
       const user = await User.findById(updatedRequest.user).lean();
 
       if (user) {
@@ -204,20 +263,23 @@ const updateRefillStatus = async (req, res, next) => {
           pharmacyName: updatedRequest.pharmacyName,
         });
 
-        console.log(`📧 Refill confirmation sent → ${user.email}`);
+        console.log(`📧 Refill confirmation sent to ${user.email}`);
       }
     }
 
     return successResponse(res, 'Refill request updated', updatedRequest);
   } catch (error) {
+    console.error('❌ Error updating refill:', error);
     next(error);
   }
 };
+
 
 module.exports = {
   createRefillRequest,
   getRefillRequests,
   getRefillRequest,
   cancelRefillRequest,
+  updateRefillRequest,
   updateRefillStatus,
 };

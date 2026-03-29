@@ -84,13 +84,12 @@ refillRequestSchema.index({ user: 1, status: 1 });
 refillRequestSchema.index({ user: 1, medication: 1 });
 
 //  Pre-save logic
-refillRequestSchema.pre('save', function (next) {
+refillRequestSchema.pre('save', function () {
   if (this.status === 'completed') {
     if (!this.completedAt) this.completedAt = new Date();
   } else {
     this.completedAt = undefined;
-  }
-  next();
+  };
 });
 
 //  Virtual: days since request

@@ -6,6 +6,7 @@ const {
   getRefillRequests,
   getRefillRequest,
   cancelRefillRequest,
+  updateRefillRequest,
   updateRefillStatus,
 } = require('../controllers/refill.controller');
 
@@ -31,11 +32,12 @@ router
 router
   .route('/:id')
   .get(validateObjectId, getRefillRequest)
-  .delete(validateObjectId, cancelRefillRequest);
+  .delete(validateObjectId, cancelRefillRequest)
+  .put(validateObjectId, updateRefillRequest);
 
 // STATUS UPDATE (ADMIN ONLY) 
 router
-  .route('/:id/status')
+  .route('/status/:id')
   .put(
     validateObjectId,
     adminOnly,

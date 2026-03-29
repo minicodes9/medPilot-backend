@@ -1,34 +1,28 @@
 const User = require('../models/user.model');
 const { verifyAccessToken } = require('../utils/jwt');
 
+// ── PROTECT ───────────────────────────────────────────────
 const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    // Check if header exists
     if (!authHeader) {
       const error = new Error('No authorization header provided');
       error.statusCode = 401;
       return next(error);
     }
 
-    // Check Bearer format
     if (!authHeader.startsWith('Bearer ')) {
       const error = new Error('Invalid token format');
       error.statusCode = 401;
       return next(error);
     }
 
-    // Extract token
     const token = authHeader.split(' ')[1];
-
-    // Verify token using utility
     const decoded = verifyAccessToken(token);
 
-    // Attach userId to request for downstream use
     req.userId = decoded.userId;
 
-    // Fetch user (exclude password)
     req.user = await User.findById(decoded.userId)
       .select('-password')
       .lean();
@@ -45,6 +39,7 @@ const protect = async (req, res, next) => {
   }
 };
 
+// ── ADMIN ONLY ────────────────────────────────────────────
 const adminOnly = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     const error = new Error('Access denied. Admins only');
@@ -54,4 +49,24 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, adminOnly };
+// ── PATIENT ONLY ──────────────────────────────────────────
+const patientOnly = (req, res, next) => {
+  if (!req.user || req.user.role === 'admin') {
+    const error = new Error('Access denied. Patients only');
+    error.statusCode = 403;
+    return next(error);
+  }
+  next();
+};
+
+// ── PATIENT OR CAREGIVER ──────────────────────────────────
+const patientOrCaregiver = (req, res, next) => {
+  if (!req.user || req.user.role === 'admin') {
+    const error = new Error('Access denied. Patients and caregivers only');
+    error.statusCode = 403;
+    return next(error);
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly, patientOnly, patientOrCaregiver };

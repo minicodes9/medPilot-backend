@@ -1,8 +1,7 @@
 const Medication = require('../models/medications.model');
 const { successResponse, errorResponse } = require('../utils/response');
 
-
-// ADD MEDICATION 
+// ── ADD MEDICATION ───────────────────────────────────────
 const addMedication = async (req, res, next) => {
   try {
     const medication = await Medication.create({
@@ -16,9 +15,7 @@ const addMedication = async (req, res, next) => {
   }
 };
 
-
-// GET ALL MEDICATIONS
-
+// ── GET ALL MEDICATIONS ──────────────────────────────────
 const getMedications = async (req, res, next) => {
   try {
     const { isActive, page = 1, limit = 10 } = req.query;
@@ -52,9 +49,7 @@ const getMedications = async (req, res, next) => {
   }
 };
 
-
-// GET SINGLE MEDICATION 
-
+// ── GET SINGLE MEDICATION ────────────────────────────────
 const getMedication = async (req, res, next) => {
   try {
     const medication = await Medication.findOne({
@@ -72,12 +67,18 @@ const getMedication = async (req, res, next) => {
   }
 };
 
-
-//  UPDATE MEDICATION 
-
+// ── UPDATE MEDICATION ────────────────────────────────────
 const updateMedication = async (req, res, next) => {
   try {
-    //  Only allow specific fields
+    const medication = await Medication.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!medication) {
+      return errorResponse(res, 'Medication not found', 404);
+    }
+
     const allowedFields = [
       'name',
       'dosage',
@@ -91,52 +92,40 @@ const updateMedication = async (req, res, next) => {
       'isActive',
     ];
 
-    const updateData = {};
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
+        medication[field] = req.body[field];
       }
     });
 
-    const medication = await Medication.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id },
-      updateData,
-      { new: true, runValidators: true }
-    ).lean();
+    await medication.save();
 
-    if (!medication) {
-      return errorResponse(res, 'Medication not found', 404);
-    }
-
-    return successResponse(res, 'Medication updated', medication);
+    return successResponse(res, 'Medication updated', medication.toObject());
   } catch (error) {
     next(error);
   }
 };
 
-//  DELETE MEDICATION 
-
+// ── DELETE MEDICATION (SOFT DELETE) ─────────────────────
 const deleteMedication = async (req, res, next) => {
   try {
     const medication = await Medication.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       { isActive: false },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!medication) {
       return errorResponse(res, 'Medication not found', 404);
     }
 
-    return successResponse(res, 'Medication deactivated');
+    return successResponse(res, 'Medication deleted');
   } catch (error) {
     next(error);
   }
 };
 
-//
-// ── CHECK REFILL STATUS ──────────────────────────────────
-//
+//  CHECK REFILL STATUS 
 const checkRefillStatus = async (req, res, next) => {
   try {
     const medications = await Medication.find({
@@ -156,7 +145,7 @@ const checkRefillStatus = async (req, res, next) => {
         name: med.name,
         remainingQuantity: med.remainingQuantity,
         refillThreshold: med.refillThreshold,
-        isUrgent: med.remainingQuantity === 0,
+        isUrgent: med.remainingQuantity === 2, // Example: mark as urgent if only 2 doses left
       })),
     });
   } catch (error) {

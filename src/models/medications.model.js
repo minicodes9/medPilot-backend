@@ -70,8 +70,8 @@ const medicationSchema = new mongoose.Schema(
     refillThreshold: {
       type: Number,
       default: 7,
+      min: [1, 'Refill threshold must be at least 1'],
     },
-
     instructions: {
       type: String,
       trim: true,
@@ -90,16 +90,14 @@ const medicationSchema = new mongoose.Schema(
 );
 
 //  Pre-save hook
-medicationSchema.pre('save', function (next) {
+medicationSchema.pre('save', function () {
   if (this.isNew) {
     this.remainingQuantity = this.quantity;
   }
 
   if (this.remainingQuantity > this.quantity) {
     this.remainingQuantity = this.quantity;
-  }
-
-  next();
+  };
 });
 
 //  Virtual: refill status

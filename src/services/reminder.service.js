@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const Medication = require('../models/medication.model');
+const Medication = require('../models/medications.model');
 const DoseLog = require('../models/doseLog.model');
 const {
   sendDoseReminder,

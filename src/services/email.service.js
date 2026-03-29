@@ -67,9 +67,22 @@ const sendRefillConfirmation = async ({ to, name, medicationName, pharmacyName }
   });
 };
 
+// SEND OTP EMAIL
+const sendOTP = async ({ to, name, otp }) => {
+  return sendEmail({
+    to,
+    subject: 'Your MedPilot OTP Code',
+    text: `Hi ${name}, your OTP code is ${otp}. It expires in 15 minutes.`,
+    html: `<p>Hi ${name},</p>
+           <p>Your OTP code is: <b>${otp}</b></p>
+           <p>This code expires in 15 minutes.</p>`,
+  });
+};
+
 module.exports = {
   sendEmail,
   sendDoseReminder,
   sendRefillAlert,
   sendRefillConfirmation,
+  sendOTP,
 };

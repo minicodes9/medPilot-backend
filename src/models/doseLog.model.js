@@ -60,13 +60,12 @@ doseLogSchema.index({ user: 1, status: 1 });
 doseLogSchema.index({ scheduledTime: 1 });
 
 //  Pre-save logic
-doseLogSchema.pre('save', function (next) {
+doseLogSchema.pre('save', function () {
   if (this.status === 'taken') {
     if (!this.takenAt) this.takenAt = new Date();
   } else {
     this.takenAt = undefined;
-  }
-  next();
+  };
 });
 
 //  Virtual: taken on time
