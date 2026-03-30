@@ -1,12 +1,61 @@
 require('dotenv').config();
-const app = require('./src/app.js');
+
+const { startSchedulers } = require('./src/services/reminder.service');
+const fs = require('fs');
+const path = require('path');
+
+// ── ENSURE LOGS FOLDER EXISTS ────────────────────────
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+const logFile = path.join(logsDir, 'access.log');
+if (!fs.existsSync(logFile)) {
+  fs.writeFileSync(logFile, '');
+}
+
+const app = require('./src/app');
+const connectDB = require('./src/config/db');
 const mongoose = require('mongoose');
+const morgan = require('morgan');
+
+const accessLogStream = fs.createWriteStream(logFile, { flags: 'a' });
+app.use(morgan('combined', { stream: accessLogStream }));
 
 const PORT = process.env.PORT || 4000;
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch(err => console.error('Database connection error:', err));
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION:', err.message);
+  process.exit(1);
+});
+
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 MedPilot Server running on port ${PORT}`);
+      startSchedulers();
+    });
+    
+    process.on('unhandledRejection', (err) => {
+      console.error('❌ UNHANDLED REJECTION:', err.message);
+      server.close(() => process.exit(1));
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('🛑 Gracefully shutting down...');
+      await mongoose.connection.close();
+      server.close(() => {
+        console.log('💤 Server closed');
+        process.exit(0);
+      });
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
