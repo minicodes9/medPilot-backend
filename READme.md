@@ -2,6 +2,16 @@
 
 > A medication management and reminder platform that helps patients track medications, receive timely reminders, confirm doses, and manage prescription refills.
 
+## 🔗 Links
+
+| | |
+|---|---|
+| **Live API** | https://medpilot-backend.onrender.com |
+| **API Documentation** | https://documenter.getpostman.com/view/50244835/2sBXionW5t |
+| **Health Check** | https://medpilot-backend.onrender.com/health |
+
+---
+
 ---
 
 ## Table of Contents
